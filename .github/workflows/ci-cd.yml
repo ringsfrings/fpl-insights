@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  build-scan:
+  build-test-scan:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,15 +32,23 @@ jobs:
           image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/fpl-insights-app:latest
           format: table
 
+      - name: Push Docker image
+        run: |
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/fpl-insights-app:latest
+
   deploy:
     runs-on: ubuntu-latest
-    needs: build-scan
+    needs: build-test-scan
     steps:
-      - name: SSH and deploy via Ansible
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy with Ansible
         uses: dawidd6/action-ansible-playbook@v2
         with:
-          playbook: ./ansible/playbooks/deploy.yml
+          playbook: ansible/playbooks/deploy.yml
           directory: ./
-          inventory: ./ansible/inventory.ini
+          inventory: ansible/inventory.ini
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          options: --vault-password-file ~/.vault_pass.txt
+          extra-vars: ansible_become_pass=${{ secrets.VAULT_PASSWORD }}
