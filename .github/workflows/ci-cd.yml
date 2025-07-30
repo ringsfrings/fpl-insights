@@ -39,8 +39,8 @@ jobs:
       - name: SSH and deploy via Ansible
         uses: dawidd6/action-ansible-playbook@v2
         with:
-          playbook: ansible/playbooks/deploy.yml
+          playbook: ./ansible/playbooks/deploy.yml
           directory: ./
-          inventory: ansible/inventory.ini
+          inventory: ./ansible/inventory.ini
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           options: --vault-password-file ~/.vault_pass.txt
