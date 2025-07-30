@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FPL Dashboard</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p04crKCEPDVSdxSVmO0gsBLHChwq6CkNjEcVuJ39MF4R2tQeM+c/fi91tILs/BKPYwC7dkF+tR+M5C73sv2qxA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- GSAP for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" integrity="sha512-cIUfMbbXsiqc1Pni4z/9zA84AK9v9vzA9v6TZo8A27DOPsXnPpIHUXGfOSXp8zw7Z5ljx+r2QtPlEDBqzSSzDw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js" integrity="sha512-Rwfn2PwpwkdUVBLlqX0LZRpe7XK9YgeOouEubBrSe3oW4k1WyCo69HxyPdaKCko8KCL75cM2ImCy1Z7AKSEJAA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <!-- Babel to compile JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    {% raw %}
+    // FPLDashboard component implemented in JSX and compiled by Babel in the browser.
+    const { useState, useEffect } = React;
+
+    const FPLDashboard = () => {
+      const [activeSection, setActiveSection] = useState('overview');
+      const [gameweekData, setGameweekData] = useState(null);
+      const [priceChanges, setPriceChanges] = useState([]);
+      const [differentials, setDifferentials] = useState([]);
+      const [topPlayers, setTopPlayers] = useState([]);
+      const [fixtures, setFixtures] = useState({ gws: [], data: [] });
+      const [games, setGames] = useState([]);
+      const [tickerOffset, setTickerOffset] = useState(0);
+      const [watchlist, setWatchlist] = useState(() => {
+        try {
+          const stored = localStorage.getItem('watchlist');
+          return stored ? JSON.parse(stored) : [];
+        } catch {
+          return [];
+        }
+      });
+
+      useEffect(() => {
+        async function fetchData() {
+          try {
+            const gwRes = await fetch('/gameweek_overview');
+            if (gwRes.ok) setGameweekData(await gwRes.json());
+            const pcRes = await fetch('/price_changes');
+            if (pcRes.ok) setPriceChanges(await pcRes.json());
+            const diffRes = await fetch('/differentials');
+            if (diffRes.ok) setDifferentials(await diffRes.json());
+            const topRes = await fetch('/top_players');
+            if (topRes.ok) setTopPlayers(await topRes.json());
+            const fixRes = await fetch(`/fixtures?count=6&offset=${tickerOffset}`);
+            if (fixRes.ok) setFixtures(await fixRes.json());
+            const gamesRes = await fetch('/next_fixtures');
+            if (gamesRes.ok) setGames(await gamesRes.json());
+          } catch (err) {
+            console.error('Error fetching FPL data:', err);
+          }
+        }
+        fetchData();
+      }, [tickerOffset]);
+
+      const positionName = (posId) => {
+        const positions = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
+        return positions[posId] || String(posId);
+      };
+
+      const getDifficultyClass = (difficulty) => {
+        const classes = {
+          1: 'bg-green-100 text-green-800 border-green-200',
+          2: 'bg-green-50 text-green-700 border-green-100',
+          3: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+          4: 'bg-red-50 text-red-700 border-red-200',
+          5: 'bg-red-100 text-red-800 border-red-300'
+        };
+        return classes[difficulty] || 'bg-gray-50 text-gray-700 border-gray-200';
+      };
+
+      const addToWatchlist = (player) => {
+        if (!watchlist.find((p) => p.id === player.id)) {
+          const newList = [...watchlist, player];
+          setWatchlist(newList);
+          try { localStorage.setItem('watchlist', JSON.stringify(newList)); } catch {}
+        }
+      };
+
+      const removeFromWatchlist = (id) => {
+        const newList = watchlist.filter((p) => p.id !== id);
+        setWatchlist(newList);
+        try { localStorage.setItem('watchlist', JSON.stringify(newList)); } catch {}
+      };
+
+      const navItems = [
+        { id: 'overview', icon: 'fa-info-circle', label: 'Overview' },
+        { id: 'rank', icon: 'fa-trophy', label: 'Rank' },
+        { id: 'ticker', icon: 'fa-calendar-alt', label: 'Ticker' },
+        { id: 'games', icon: 'fa-futbol', label: 'Games' },
+        { id: 'prices', icon: 'fa-arrow-up', label: 'Prices' },
+        { id: 'differentials', icon: 'fa-bolt', label: 'Differentials' },
+        { id: 'watchlist', icon: 'fa-star', label: 'Watchlist' }
+      ];
+
+      const NavigationBar = () => (
+        <nav className="bg-gradient-to-r from-purple-900 to-indigo-900 shadow-lg">
+          <div className="flex justify-center items-center py-3 px-4 overflow-x-auto">
+            <div className="flex space-x-1 min-w-max">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`nav-item flex flex-col items-center px-4 py-2 rounded-lg transition-all duration-300 min-w-[80px] ${
+                    activeSection === item.id
+                      ? 'bg-white/20 text-white shadow-lg transform scale-105'
+                      : 'text-purple-200 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <i className={`fa-solid ${item.icon} mb-1`}></i>
+                  <span className="text-xs font-medium">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </nav>
+      );
+
+      const GameweekOverview = () => (
+        <div className="dashboard-card bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 shadow-lg border border-purple-100">
+          <h2 className="text-2xl font-bold text-purple-900 mb-4 flex items-center">
+            <i className="fa-solid fa-chart-bar mr-3 text-purple-600"></i>
+            Gameweek Overview
+          </h2>
+          {gameweekData && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
+                <h3 className="font-semibold text-purple-900">{gameweekData.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">Current Gameweek</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
+                <h3 className="font-semibold text-purple-900">{gameweekData.average_entry_score}</h3>
+                <p className="text-sm text-gray-600 mt-1">Average Score</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
+                <h3 className="font-semibold text-purple-900">{gameweekData.highest_score}</h3>
+                <p className="text-sm text-gray-600 mt-1">Highest Score</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+      const PlayerTable = ({ players, title, onAddToWatchlist, showForm = false, showPointsPerGame = false }) => (
+        <div className="dashboard-card bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+            <h2 className="text-xl font-bold text-white">{title}</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Team</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Pos</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ownership</th>
+                  {showForm && <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Form</th>}
+                  {showPointsPerGame && <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">PPG</th>}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {players.map((player, index) => (
+                  <tr
+                    key={index}
+                    className={`hover:bg-purple-50 transition-colors ${
+                      watchlist.find((w) => w.id === player.id)
+                        ? 'bg-yellow-50 border-l-4 border-yellow-400'
+                        : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900">{player.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{player.team}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                        {positionName(player.position)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-green-600">£{(player.now_cost || 0).toFixed(1)}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {(player.selected_by_percent || player.ownership || 0).toFixed(1)}%
+                    </td>
+                    {showForm && <td className="px-4 py-3 text-gray-600">{(player.form || 0).toFixed(1)}</td>}
+                    {showPointsPerGame && (
+                      <td className="px-4 py-3 text-gray-600">{(player.points_per_game || 0).toFixed(1)}</td>
+                    )}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => onAddToWatchlist(player)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        + Watch
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+
+      const FixtureTicker = () => (
+        <div className="dashboard-card bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-white">Fixture Ticker</h2>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setTickerOffset(Math.max(0, tickerOffset - 1))}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+              >
+                Prev
+              </button>
+              <span className="text-white font-medium">
+                GW {fixtures.gws[0] || 1}–{fixtures.gws[fixtures.gws.length - 1] || 6}
+              </span>
+              <button
+                onClick={() => setTickerOffset(tickerOffset + 1)}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Team</th>
+                  {fixtures.gws.map((gw) => (
+                    <th key={gw} className="px-3 py-3 text-center text-sm font-semibold text-gray-700">
+                      GW {gw}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {fixtures.data.map((team, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{team.team_name}</td>
+                    {team.fixtures.map((fixture, fixIndex) => (
+                      <td key={fixIndex} className="px-3 py-3 text-center">
+                        {fixture ? (
+                          <div
+                            className={`px-2 py-1 rounded text-xs font-medium border ${getDifficultyClass(
+                              fixture.difficulty
+                            )}`}
+                          >
+                            {fixture.opponent}{fixture.home ? '(H)' : '(A)'}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+
+      const UpcomingGames = () => (
+        <div className="dashboard-card bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+            <h2 className="text-xl font-bold text-white">Upcoming Matches</h2>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {games.map((game, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className={`px-3 py-2 rounded-lg text-sm font-medium border ${getDifficultyClass(game.home_difficulty)}`}>{game.home_team}</div>
+                    <span className="text-gray-500 font-medium">vs</span>
+                    <div className={`px-3 py-2 rounded-lg text-sm font-medium border ${getDifficultyClass(game.away_difficulty)}`}>{game.away_team}</div>
+                  </div>
+                    {game.kickoff_time && (
+                      <div className="text-sm text-gray-600">
+                        {new Date(game.kickoff_time).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'Africa/Algiers'
+                        })}
+                      </div>
+                    )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+
+      const WatchlistSection = () => (
+        <div className="dashboard-card bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">
+            <h2 className="text-xl font-bold text-white flex items-center">
+              <i className="fa-solid fa-star mr-2"></i> Your Watchlist
+            </h2>
+          </div>
+          {watchlist.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <i className="fa-solid fa-star text-gray-300 mb-4 text-5xl"></i>
+              <p>Your watchlist is empty. Add players from other sections to track them here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Team</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Pos</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {watchlist.map((player, index) => (
+                    <tr key={index} className="hover:bg-yellow-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{player.name}</td>
+                      <td className="px-4 py-3 text-gray-600">{player.team}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                          {positionName(player.position)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-green-600">£{(player.now_cost || 0).toFixed(1)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => removeFromWatchlist(player.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+
+      const renderActiveSection = () => {
+        switch (activeSection) {
+          case 'overview':
+            return <GameweekOverview />;
+          case 'rank':
+            return <PlayerTable players={topPlayers} title="Top Players" onAddToWatchlist={addToWatchlist} />;
+          case 'ticker':
+            return <FixtureTicker />;
+          case 'games':
+            return <UpcomingGames />;
+          case 'prices':
+            return <PlayerTable players={priceChanges} title="Price Changes" onAddToWatchlist={addToWatchlist} />;
+          case 'differentials':
+            return <PlayerTable players={differentials} title="Differential Picks" onAddToWatchlist={addToWatchlist} showForm={true} showPointsPerGame={true} />;
+          case 'watchlist':
+            return <WatchlistSection />;
+          default:
+            return <GameweekOverview />;
+        }
+      };
+
+      // GSAP animations: run once after the component mounts
+      useEffect(() => {
+        if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+          gsap.registerPlugin(ScrollTrigger);
+          gsap.utils.toArray('.dashboard-card').forEach((el) => {
+            gsap.from(el, {
+              opacity: 0,
+              y: 40,
+              duration: 0.6,
+              scrollTrigger: {
+                trigger: el,
+                start: 'top 80%'
+              }
+            });
+          });
+        }
+      }, []);
+
+      return (
+        <div>
+          {/* Header */}
+          <header className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-700 shadow-2xl">
+            <div className="max-w-7xl mx-auto px-4 py-8 text-center">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">Fantasy Premier League</h1>
+              <p className="text-purple-100 text-lg md:text-xl max-w-2xl mx-auto">
+                Professional insights, player movements, and strategic analysis for your FPL success
+              </p>
+            </div>
+            <NavigationBar />
+          </header>
+          {/* Main content */}
+          <main className="max-w-7xl mx-auto px-4 py-8">{renderActiveSection()}</main>
+          {/* Footer */}
+          <footer className="bg-gray-900 text-white py-8 mt-16">
+            <div className="max-w-7xl mx-auto px-4 text-center">
+              <p className="text-gray-400">Fantasy Premier League Dashboard - Built with React &amp; GSAP (CDN)</p>
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    // Render FPLDashboard into the root element
+    ReactDOM.render(<FPLDashboard />, document.getElementById('root'));
+    {% endraw %}
+  </script>
+</body>
+</html>
