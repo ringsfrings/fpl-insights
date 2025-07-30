@@ -54,9 +54,7 @@ File: `.github/workflows/ci-cd.yml`
 
 CI/CD pipeline includes:
 
-- **Bandit** – SAST for Python code
 - **Trivy** – Docker image scanning
-- **Checkov** – Scanning Ansible roles for misconfigurations
 - **Build & Push** – Docker image pushed to DockerHub
 - **Deployment** – Ansible playbook executes against remote VM
 
