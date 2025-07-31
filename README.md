@@ -1,18 +1,16 @@
 # Fantasy Premier League Insights Dashboard
 
-This project is a fully containerized Fantasy Premier League (FPL) insights dashboard built with **Flask** and **React**, designed primarily to demonstrate a modern DevOps and DevSecOps workflow from local development to production deployment.
+This project is a fully containerized Fantasy Premier League (FPL) insights dashboard built with **Flask** and **React**, designed to showcase a complete DevOps and DevSecOps pipeline using a self-hosted runner on a local VM (Node-02).
 
 ## 🔍 Features
 
-- **Gameweek Overview** – Average/highest scores and chip usage for the current or upcoming gameweek
-- **Price Changes** – Top player price increases and decreases
-- **Differential Picks** – Low-ownership players with strong recent performance
-- **Top Players** – High scorers by total points
-- **Fixture Ticker** – Colour-coded fixture difficulty for the next six gameweeks
-- **Upcoming Matches** – Kickoff times with timezone localization
-- **Watchlist** – Track specific players across dashboards
-
-The UI is minimal by design and built using a CDN-loaded front end with **React**, **TailwindCSS**, and **GSAP** animations.
+- **Gameweek Overview** – Average/highest scores and chip usage
+- **Price Changes** – Top player price movements
+- **Differential Picks** – Low-ownership high-performers
+- **Top Players** – Total points leaders
+- **Fixture Ticker** – Fixture difficulty rating
+- **Upcoming Matches** – Kickoff times with timezone support
+- **Watchlist** – Track player stats
 
 ---
 
@@ -26,95 +24,86 @@ pip install -r requirements.txt
 python3 fpl/fpl_app.py
 ```
 
-App available at `http://localhost:5000/`
+Access the app at `http://localhost:5000/`
 
 ---
 
 ## 🐳 Docker Workflow
 
 ```bash
- docker run -d --name fpl_app -p 5000:5000 --restart always ringsfrings/fpl-insights-app:latest
+docker run -d --name fpl_app -p 5000:5000 --restart always ringsfrings/fpl-insights-app:latest
 ```
 
 ---
 
-## 🧪 DevOps & DevSecOps Workflow
+## 🧪 DevOps & DevSecOps Pipeline
 
-### 🔐 Secrets Management with Ansible Vault
+### 🔐 Ansible Vault
 
-Ansible Vault encrypts sensitive data (like sudo passwords). The deployment uses:
+Secrets like sudo password and SSH key paths are encrypted with:
 
 ```bash
 ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml --vault-password-file ~/.vault_pass.txt
 ```
 
-### 📦 GitHub Actions CI/CD
+### 🛠️ GitHub Actions CI/CD
 
-File: `.github/workflows/ci-cd.yml`
+Pipeline stages:
 
-CI/CD pipeline includes:
-
-- **Trivy** – Docker image scanning
-- **Build & Push** – Docker image pushed to DockerHub
-- **Deployment** – Ansible playbook executes against remote VM
-
-### 🛠️ Ansible Automation
-
-All provisioning and deployment are handled through Ansible, targeting a VM defined in `inventory.ini`:
-
-```ini
-[fpl_server]
-192.168.238.131 ansible_user=bil ansible_ssh_private_key_file=~/.ssh/id_rsa
-```
-
-Playbook tasks:
-
-- Install Docker Engine and dependencies
-- Pull latest Docker image
-- Remove existing container
-- Run updated container
-
-### 🖥️ VM-Based Deployment
-
-This project avoids Terraform or cloud provisioning and focuses on deploying to a local VM (via VMware), ideal for lab setups or air-gapped environments.
+- Lint Dockerfile with **Hadolint**
+- Scan Ansible with **Checkov**
+- Scan Docker image with **Trivy**
+- Build & push image to DockerHub
+- SSH deploy using **Ansible** on a **self-hosted runner (Node-02)**
 
 ---
 
-## 🔄 Directory Structure
+## 🤖 Self-Hosted Runner
 
-```bash
-fpl_app/
+The runner on the VM (Node-02) is configured using GitHub’s action runner binary and set up as a systemd service.
+
+No manual intervention: All provisioning (Docker, image pulling, running) is handled **remotely from GitHub Actions** using:
+
+```yml
+ansible_user=bil
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+```
+
+## 🛡️ DevSecOps Tools
+
+- **Hadolint** – Dockerfile static analysis
+- **Checkov** – IaC scanning for Ansible
+- **Trivy** – Docker image CVE scanning
+
+---
+
+## 📁 Structure
+
+```
+fpl-insights/
 ├── Dockerfile
 ├── fpl/
 │   ├── fpl_app.py
 │   └── templates/
 ├── ansible/
 │   ├── inventory.ini
-│   ├── vault.yml (encrypted)
+│   ├── vault.yml
 │   └── playbooks/
 │       └── deploy.yml
 ├── .github/
 │   └── workflows/
 │       └── ci-cd.yml
-├── terraform.tfstate (legacy)
-├── main.tf (legacy)
 └── README.md
 ```
 
 ---
 
-## 📈 Future Improvements
+## 🚀 Future Work
 
-- Add Prometheus/Grafana for monitoring & alerting
-- Add persistent watchlist with user accounts
-- Migrate deployment to cloud using Terraform with load balancing and autoscaling
-
----
-
-## 👏 Acknowledgements
-
-- Uses public FPL API for all data
-- DevSecOps guided by community best practices for CI/CD
+- Add Prometheus/Grafana monitoring
+- Integration testing via Pytest or UnitTest
+- Real-time webhooks or Discord alerts
+- Terraform-based cloud deployment
 
 ---
 
