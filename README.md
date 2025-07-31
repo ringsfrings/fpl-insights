@@ -1,18 +1,16 @@
 # Fantasy Premier League Insights Dashboard
 
-This project is a fully containerized Fantasy Premier League (FPL) insights dashboard built with **Flask** and **React**, designed to showcase a complete DevOps and DevSecOps pipeline using a self-hosted runner on a local VM (Node-02).
+This project is a fully containerized Fantasy Premier League (FPL) insights dashboard built with **Flask** and **React**. It demonstrates a modern DevOps and DevSecOps workflow, from development to automated deployment on a self-hosted virtual machine (VM).
 
 ## 🔍 Features
 
-- **Gameweek Overview** – Average/highest scores and chip usage
-- **Price Changes** – Top player price movements
-- **Differential Picks** – Low-ownership high-performers
-- **Top Players** – Total points leaders
-- **Fixture Ticker** – Fixture difficulty rating
-- **Upcoming Matches** – Kickoff times with timezone support
-- **Watchlist** – Track player stats
-
----
+- Gameweek Overview – Scores and chip usage
+- Price Changes – Top risers and fallers
+- Differential Picks – Low-ownership high performers
+- Top Players – Based on total points
+- Fixture Ticker – Difficulty color-coded
+- Upcoming Matches – Localized kickoff times
+- Watchlist – Track your chosen players
 
 ## ⚙️ Running Locally
 
@@ -24,60 +22,29 @@ pip install -r requirements.txt
 python3 fpl/fpl_app.py
 ```
 
-Access the app at `http://localhost:5000/`
-
----
-
 ## 🐳 Docker Workflow
 
 ```bash
 docker run -d --name fpl_app -p 5000:5000 --restart always ringsfrings/fpl-insights-app:latest
 ```
 
----
+## 🧪 DevOps & DevSecOps Workflow
 
-## 🧪 DevOps & DevSecOps Pipeline
+This project uses GitHub Actions CI/CD pipeline with full security automation:
 
-### 🔐 Ansible Vault
+- **Docker Build & Push**: Builds and pushes image to DockerHub
+- **Ansible Playbook**: Deploys containerized app to local VMware VM using Ansible
+- **Secrets Management**: Ansible Vault handles sensitive info like SSH keys and sudo password
+- **Checkov**: Scans Ansible playbooks for misconfigurations
+- **Hadolint**: Lints Dockerfile for best practices
+- **Trivy**: Scans Docker image for vulnerabilities
+- **GitHub Self-Hosted Runner**: Installed and registered securely on the same VM as deployment target
 
-Secrets like sudo password and SSH key paths are encrypted with:
+## 🖥️ VM-Based Deployment
 
-```bash
-ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml --vault-password-file ~/.vault_pass.txt
-```
+No cloud provider used. CI/CD deploys the app from GitHub to a local VM (Node-02) using a self-hosted runner with systemd-managed service. The runner triggers Ansible directly without needing manual SSH configuration.
 
-### 🛠️ GitHub Actions CI/CD
-
-Pipeline stages:
-
-- Lint Dockerfile with **Hadolint**
-- Scan Ansible with **Checkov**
-- Scan Docker image with **Trivy**
-- Build & push image to DockerHub
-- SSH deploy using **Ansible** on a **self-hosted runner (Node-02)**
-
----
-
-## 🤖 Self-Hosted Runner
-
-The runner on the VM (Node-02) is configured using GitHub’s action runner binary and set up as a systemd service.
-
-No manual intervention: All provisioning (Docker, image pulling, running) is handled **remotely from GitHub Actions** using:
-
-```yml
-ansible_user=bil
-ansible_ssh_private_key_file=~/.ssh/id_rsa
-```
-
-## 🛡️ DevSecOps Tools
-
-- **Hadolint** – Dockerfile static analysis
-- **Checkov** – IaC scanning for Ansible
-- **Trivy** – Docker image CVE scanning
-
----
-
-## 📁 Structure
+## 🔄 Directory Structure
 
 ```
 fpl-insights/
@@ -87,7 +54,7 @@ fpl-insights/
 │   └── templates/
 ├── ansible/
 │   ├── inventory.ini
-│   ├── vault.yml
+│   ├── vault.yml (encrypted)
 │   └── playbooks/
 │       └── deploy.yml
 ├── .github/
@@ -96,16 +63,12 @@ fpl-insights/
 └── README.md
 ```
 
----
+## 📈 Future Improvements
 
-## 🚀 Future Work
-
-- Add Prometheus/Grafana monitoring
-- Integration testing via Pytest or UnitTest
-- Real-time webhooks or Discord alerts
-- Terraform-based cloud deployment
-
----
+- Add Prometheus/Grafana for observability
+- Extend CI/CD with test automation
+- Add cloud deployment option via Terraform
+- Integrate GitHub webhooks for real-time alerts
 
 ## 🧩 License
 
