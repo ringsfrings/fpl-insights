@@ -2,6 +2,7 @@
 - name: Deploy FPL Insights App
   hosts: fpl_server
   become: yes
+  connection: local  # <-- This line enables local execution
   vars_files:
     - ../vault.yml  # adjust path if needed
 
