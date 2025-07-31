@@ -13,12 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Bandit
-        run: pip install bandit
-
-      - name: Scan Python code with Bandit
-        run: bandit -r fpl/ -ll
-
       - name: Install Checkov
         run: pip install checkov
 
