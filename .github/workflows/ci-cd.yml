@@ -1,41 +1,55 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline with DevSecOps
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build:
+  scan:
+    name: DevSecOps Scanning
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Build & Push Docker image
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Scan Python code with Bandit
+        run: bandit -r fpl/ -ll
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Scan Ansible playbooks with Checkov
+        run: checkov -d ansible/playbooks/
+
+      - name: Lint Dockerfile with Hadolint
+        uses: hadolint/hadolint-action@v2.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - name: Install Trivy
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/fpl-insights-app:latest .
-          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/fpl-insights-app:latest
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+
+      - name: Scan DockerHub image with Trivy
+        run: |
+          trivy image --severity HIGH,CRITICAL ringsfrings/fpl-insights-app:latest
 
   deploy:
-    runs-on: self-hosted  # 💥 THIS RUNS ON YOUR NODE-02
-    needs: build
+    name: Deploy with Ansible to Node-02
+    runs-on: self-hosted
+    needs: scan
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Ansible (if not already installed)
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-
-      - name: Write vault password to file
+      - name: Write vault password
         run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/.vault_pass.txt
-      - name: Trust remote SSH host
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan 192.168.238.131 >> ~/.ssh/known_hosts
-
 
       - name: Run Ansible Playbook
         run: |
